@@ -30,6 +30,8 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
     private float shaderTop = Float.NaN, shaderBottom = Float.NaN;
     /** Draw the band and its edge (config.xml dock_band); false leaves the tiles floating on the wallpaper. */
     private final boolean bandVisible;
+    /** hero_every_row: the band is hidden while a row below the dock is parked in its place. */
+    boolean hidden;
     /** single_row: the tiles after the dock share its row, so they take the same offsets to stay level with it. */
     private final boolean singleRow;
     /** dock_band_all: in a single row, the band runs behind every app instead of the dock apps only. */
@@ -87,7 +89,7 @@ public class DockDecoration extends RecyclerView.ItemDecoration {
 
     @Override
     public void onDraw(@NonNull Canvas c, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
-        if (!bandVisible) return;
+        if (!bandVisible || hidden) return;
         boolean any = false;
         int cardWidth = 0;
         for (int i = 0; i < parent.getChildCount(); i++) {

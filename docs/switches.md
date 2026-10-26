@@ -54,3 +54,19 @@ fits the rules; keys from before the rule sit on its wanted list until a screens
 | `home_long_press_home` | <img src="switches/home_long_press_home.jpg" width="320" alt="home_long_press_home on a TV"> |
 | `vpn_pill` | <img src="switches/vpn_pill.jpg" width="320" alt="vpn_pill on a TV"> |
 | `power_on_home_always` | <img src="switches/power_on_home_always.jpg" width="320" alt="power_on_home_always on a TV"> |
+| `grid_order` | <img src="../themes/header-grid/screenshot.jpg" width="320" alt="grid_order in the header-grid theme on a TV"> |
+| `hero_every_row` | <img src="../themes/header-grid/screenshot.jpg" width="320" alt="hero_every_row in the header-grid theme on a TV"> |
+| `hero_under_clock` | <img src="../themes/header-grid/screenshot.jpg" width="320" alt="hero_under_clock in the header-grid theme on a TV"> |
+| `hero_under_clock_room` | <img src="../themes/header-grid/screenshot.jpg" width="320" alt="hero_under_clock_room in the header-grid theme on a TV"> |
+| `hero_in_header` | <img src="../themes/header-grid/screenshot.jpg" width="320" alt="hero_in_header in the header-grid theme on a TV"> |
+| `header_stacked` | <img src="../themes/header-grid/screenshot.jpg" width="320" alt="header_stacked in the header-grid theme on a TV"> |
+| `header_side` | <img src="../themes/header-grid/screenshot.jpg" width="320" alt="header_side in the header-grid theme on a TV"> |
+| `tile_gap` | <img src="../themes/header-grid/screenshot.jpg" width="320" alt="tile_gap in the header-grid theme on a TV"> |
+| `visible_rows` | <img src="../themes/header-grid/screenshot.jpg" width="320" alt="visible_rows in the header-grid theme on a TV"> |
+| `focus_zoom` | <img src="../themes/header-grid/screenshot.jpg" width="320" alt="focus_zoom in the header-grid theme on a TV"> |
+| `hero_font` | <img src="../themes/header-grid/screenshot.jpg" width="320" alt="hero_font in the header-grid theme on a TV"> |
+| `clock_font` | <img src="../themes/header-grid/screenshot.jpg" width="320" alt="clock_font in the header-grid theme on a TV"> |
+| `dream_clock_font` | <img src="switches/dream_fonts.jpg" width="320" alt="dream_clock_font on the clock screensaver on a TV"> |
+| `dream_date_font` | <img src="switches/dream_fonts.jpg" width="320" alt="dream_date_font on the clock screensaver on a TV"> |
+| `dream_centered` | <img src="switches/dream_fonts.jpg" width="320" alt="dream_centered on the clock screensaver on a TV"> |
+| `app_redirects` | <img src="switches/app_redirects.jpg" width="320" alt="Kodi opened by the LIVE button through app_redirects on an Android 9 Mi Box S"> |

@@ -36,6 +36,8 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView animationsChoice;
     private TextView advancedChoice;
     private TextView followThemeChoice;
+    private TextView themeChoice;
+    private TextView visibleRowsChoice;
     private TextView openOnStartChoice;
     private int columns;
     private int rowsBelowDock;
@@ -133,6 +135,17 @@ public final class LauncherSettingsActivity extends Activity {
             openOnStartChoice.setVisibility(View.VISIBLE);
             openOnStartChoice.setOnClickListener(v -> showOpenOnStartPicker());
         }
+        visibleRowsChoice = findViewById(R.id.visibleRowsChoice);
+        // Rows on screen: 3, 4 or fill the screen (the next row then shows cut off at the bottom). Each press steps on.
+        visibleRowsChoice.setOnClickListener(v -> {
+            int now = Config.load(this).visibleRows;
+            int next = now == 3 ? 4 : now == 4 ? 0 : 3;
+            choices.edit().putInt(Config.VISIBLE_ROWS_KEY, next).commit();
+            changed();
+            refresh();
+        });
+        themeChoice = findViewById(R.id.themeChoice);
+        themeChoice.setOnClickListener(v -> showThemePicker());
         followThemeChoice = findViewById(R.id.followThemeChoice);
         followThemeChoice.setOnClickListener(v -> {
             if (!hasOnTvChoices()) return;
@@ -274,7 +287,38 @@ public final class LauncherSettingsActivity extends Activity {
         refresh();
     }
 
+    /** Theme: the layout as installed, or one of the bundled presets on top of it; Home picks it up on return. */
+    private void showThemePicker() {
+        List<String[]> presets = Config.presets(this);
+        String current = choices.getString(Config.PRESET_KEY, "");
+        String[] labels = new String[presets.size() + 1];
+        labels[0] = getString(R.string.theme_as_installed);
+        int checked = 0;
+        for (int i = 0; i < presets.size(); i++) {
+            labels[i + 1] = presets.get(i)[1];
+            if (presets.get(i)[0].equals(current)) checked = i + 1;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.theme_title)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    if (which == 0) choices.edit().remove(Config.PRESET_KEY).commit();
+                    else choices.edit().putString(Config.PRESET_KEY, presets.get(which - 1)[0]).commit();
+                    changed();
+                    refresh();
+                    dialog.dismiss();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     private void refresh() {
+        String preset = choices.getString(Config.PRESET_KEY, "");
+        String themeName = getString(R.string.theme_as_installed);
+        for (String[] p : Config.presets(this)) if (p[0].equals(preset)) themeName = p[1];
+        themeChoice.setText(getString(R.string.theme_choice, themeName));
+        int rows = Config.load(this).visibleRows;
+        visibleRowsChoice.setText(getString(R.string.visible_rows_choice,
+                rows == 0 ? getString(R.string.visible_rows_fill) : String.valueOf(rows)));
         for (int i = 0; i < columnChoices.length; i++) {
             columnChoices[i].setSelected(columns == i + 4);
         }

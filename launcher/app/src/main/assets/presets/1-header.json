@@ -1,0 +1,15 @@
+{
+  "hero_every_row": true,
+  "hero_under_clock": true,
+  "hero_in_header": true,
+  "header_stacked": true,
+  "show_greeting": false,
+  "dock_row": false,
+  "visible_rows": 3,
+  "rows_below_dock": 0,
+  "hero_font": "bold",
+  "clock_font": "bold",
+  "always_show_names": false,
+  "name": "Header title, 3 rows",
+  "hero_under_clock_room": 4
+}

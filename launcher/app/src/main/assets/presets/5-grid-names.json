@@ -1,0 +1,14 @@
+{
+  "hero_every_row": false,
+  "hero_under_clock": false,
+  "hero_in_header": false,
+  "header_stacked": false,
+  "show_greeting": true,
+  "dock_row": false,
+  "visible_rows": 0,
+  "rows_below_dock": 0,
+  "hero_font": "light",
+  "clock_font": "",
+  "always_show_names": true,
+  "name": "Plain grid with names"
+}

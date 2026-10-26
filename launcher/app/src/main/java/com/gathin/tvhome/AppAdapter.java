@@ -96,6 +96,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     static final float FOCUS_SCALE = 1.10f;
+    /** tile_gap in pixels, or -1: then tiles keep FOCUS_SCALE room around them as usual. Set by MainActivity. */
+    static int fixedGapPx = -1;
     /** Design size of a tile (dp); tiles shrink from here when the columns don't fit, see tileWidthPx. */
     static final float DESIGN_W_DP = 180f, DESIGN_H_DP = 101f;
 
@@ -107,6 +109,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         int design = Math.round(DESIGN_W_DP * density);
         if (innerWidthPx <= 0 || columns <= 0) return design;
         int cell = innerWidthPx / columns;
+        // tile_gap: the cell is the tile plus one gap; MainActivity sized the grid so the outer tiles meet the header.
+        if (fixedGapPx >= 0) return Math.max(Math.round(80 * density), cell - fixedGapPx);
         int fit = (int) ((cell - 12 * density) / FOCUS_SCALE);
         return Math.max(Math.round(80 * density), Math.min(design, fit));
     }
@@ -190,6 +194,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private final boolean cinematic;
     /** Dock order (config.xml dock_apps, or a theme's config.json). */
     private final List<String> favourites;
+    private final List<String> gridOrder;
+    /** focus_zoom in percent, or 0 for the built-in zoom. */
+    private final int focusZoom;
+    /** hero_every_row: every row is named by the big title, so no tile gets a small name. */
+    private final boolean heroEveryRow;
     /** Grid apps fill the dock slots dock_apps leaves free (config.xml, fill_dock). */
     private final boolean fillDock;
     /** Dock apps found at the last reload, and the empty slots after them. */
@@ -223,6 +232,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.listener = listener;
         this.dockSize = dockSize;
         this.favourites = cfg.dockApps;
+        this.gridOrder = cfg.gridOrder;
+        this.focusZoom = cfg.focusZoom;
+        this.heroEveryRow = cfg.heroEveryRow;
         this.fillDock = cfg.fillDock;
         this.hidden = new HashSet<>(cfg.hiddenApps);
         this.libraryPreload = new HashSet<>(cfg.libraryApps);
@@ -315,6 +327,13 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 if (fa < 0) return 1;
                 if (fb < 0) return -1;
                 return Integer.compare(fa, fb);
+            }
+            // grid_order: these lead the grid in the listed order, before cards and the alphabetical rest.
+            int ga = gridOrder.indexOf(a.pkg), gb = gridOrder.indexOf(b.pkg);
+            if (ga >= 0 || gb >= 0) {
+                if (ga < 0) return 1;
+                if (gb < 0) return -1;
+                return Integer.compare(ga, gb);
             }
             // Cards come right after the configured dock apps, before the alphabetical grid.
             boolean ca = a.kind == Entry.CARD, cb = b.kind == Entry.CARD;
@@ -413,7 +432,10 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             // Compact spacing (COMPACT_ITEM_EXTRA_DP): 4dp item padding and a 20dp name instead of 8dp and 22dp.
             nameLp.height = Math.round(20 * density);
             int pad = Math.round(4 * density);
-            v.setPadding(v.getPaddingLeft(), pad, v.getPaddingRight(), pad);
+            // hero_every_row: no name line, so most of its room goes under the tile and the rows stay evenly spaced
+            // (still inside COMPACT_ITEM_EXTRA_DP, which sized the tiles).
+            int below = fixedGapPx >= 0 ? Math.max(0, fixedGapPx - pad) : heroEveryRow ? pad + Math.round(18 * density) : pad;
+            v.setPadding(v.getPaddingLeft(), pad, v.getPaddingRight(), below);
         }
         name.setLayoutParams(nameLp);
         // A sideways row would stretch a match_parent item across the whole screen: give it a grid column's width.
@@ -426,7 +448,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             iconLp.bottomMargin = 0;
             icon.setLayoutParams(iconLp);
         }
-        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot);
+        return new Holder(v, listener, animations, advancedEffects, reducedMotion, restNameAlpha, focusOvershoot, focusScale());
     }
 
     @Override
@@ -450,8 +472,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         h.name.setText(e.name);
         // The dock has no labels, unless always_show_names asks for them (DockDecoration then makes room in the band).
         // In a single row every tile is the dock's kind: the big title above names it.
-        boolean dockKind = dockRow && (singleRow || position < dockSize);
-        h.name.setVisibility(dockKind && restNameAlpha == 0f ? View.INVISIBLE : View.VISIBLE);
+        boolean dockKind = heroEveryRow || dockRow && (singleRow || position < dockSize);
+        // hero_every_row names every tile with the big title, so the name line takes no room at all and the rows sit closer.
+        h.name.setVisibility(heroEveryRow ? View.GONE : dockKind && restNameAlpha == 0f ? View.INVISIBLE : View.VISIBLE);
         boolean focused = h.card.isFocused();   // a rebind after reload() can hit the focused tile
         h.name.setAlpha(focused ? 1f : restNameAlpha);
         h.card.setScaleX(focused && animations ? focusScale() : 1f);
@@ -642,7 +665,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     float focusScale() {
-        return !animations ? 1f : advancedEffects ? 1.12f : 1.10f;
+        if (!animations) return 1f;
+        if (focusZoom > 0) return focusZoom / 100f;
+        return advancedEffects ? 1.12f : 1.10f;
     }
 
     /** A vivid colour sampled from the app's banner (or icon), cached per entry; a card's accent when it set one. */
@@ -863,9 +888,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         /** Alpha of the name while the tile is not focused (always_show_names). */
         final float restNameAlpha;
         final boolean overshoot;
+        /** The focused zoom (focusScale(): focus_zoom or the built-in one), the size the glass is drawn for. */
+        final float focusScale;
 
         Holder(View v, TileListener listener, boolean animations, boolean advancedEffects,
-               boolean reducedMotion, float restNameAlpha, boolean overshoot) {
+               boolean reducedMotion, float restNameAlpha, boolean overshoot, float focusScale) {
             super(v);
             card = v.findViewById(R.id.card);
             cardBackground = card.getBackground();
@@ -878,6 +905,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             this.reducedMotion = reducedMotion;
             this.restNameAlpha = restNameAlpha;
             this.overshoot = overshoot;
+            this.focusScale = focusScale;
 
             final float density = v.getResources().getDisplayMetrics().density;
             card.setOutlineProvider(new ViewOutlineProvider() {
@@ -901,7 +929,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 view.animate().cancel();
                 banner.animate().cancel();
                 name.animate().cancel();
-                float scale = !animations ? 1f : advancedEffects ? 1.12f : 1.10f;
+                float scale = focusScale;
                 float s = focused ? scale : 1f;
                 if (!animations) {
                     view.setScaleX(1f);

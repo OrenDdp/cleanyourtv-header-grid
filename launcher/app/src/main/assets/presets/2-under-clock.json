@@ -1,0 +1,15 @@
+{
+  "hero_every_row": true,
+  "hero_under_clock": true,
+  "hero_in_header": false,
+  "header_stacked": false,
+  "show_greeting": true,
+  "dock_row": false,
+  "visible_rows": 0,
+  "rows_below_dock": 0,
+  "hero_font": "bold",
+  "clock_font": "",
+  "always_show_names": false,
+  "name": "Title under the clock",
+  "hero_under_clock_room": 64
+}

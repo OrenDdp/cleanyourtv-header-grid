@@ -41,6 +41,9 @@ final class Config {
     static final String WALLPAPER_NAME = "wallpaper.jpg";
     static final String SETTINGS_NAME = "launcher_settings";
     static final String ROWS_BELOW_DOCK_KEY = "rows_below_dock";
+    /** The layout preset picked in Launcher settings (assets/presets/<id>.json), or none for the theme as installed. */
+    static final String PRESET_KEY = "theme_preset";
+    static final String PRESETS_DIR = "presets";
     static final String WALLPAPER_CHOICE_KEY = "wallpaper_choice";
     static final String DOCK_OPACITY_KEY = "dock_opacity";
     /**
@@ -62,6 +65,51 @@ final class Config {
     final List<String> hiddenApps;
     /** Packages pre-seeded into the App library's "added" set (config.xml, library_apps); empty by default. */
     final List<String> libraryApps;
+    /** Grid apps that lead the grid, in this order, after the dock (config.xml or a theme, grid_order); empty by default. */
+    List<String> gridOrder = Collections.emptyList();
+    /** The big name above every focused row, not only the dock (config.xml or a theme, hero_every_row); off by default. */
+    boolean heroEveryRow;
+    /** The big name centred under the clock instead of above the dock (config.xml or a theme, hero_under_clock). */
+    boolean heroUnderClock;
+    /** hero_under_clock: room above the grid for the name, in dp (hero_under_clock_room); the rows are cut there. */
+    int heroUnderClockRoom;
+    /** The big name's weight: light (default), regular, medium or bold (hero_font). */
+    String heroFont;
+    /** Header with the clock centred over the date, wider side margins and narrow Wi-Fi/Settings stacked (header_stacked). */
+    boolean headerStacked;
+    /** The big name in the header, centred between the clock block and the buttons (hero_in_header). */
+    boolean heroInHeader;
+    /** Screensaver clock and date weights (dream_clock_font, dream_date_font) and centring (dream_centered). */
+    String dreamClockFont;
+    String dreamDateFont;
+    boolean dreamCentered;
+    /** Home clock weight (clock_font), like hero_font; empty keeps the layout's light clock. */
+    String clockFont;
+    /** Plain grid: exactly this many rows on screen, the grid cut below the last one (visible_rows); 0 = fill the screen. */
+    int visibleRows;
+    /** header_stacked: the gap between tiles in dp, the grid spanning from the date to the buttons (tile_gap); 0 = off. */
+    int tileGap;
+    /** header_stacked: the side margin of the header (and so of the grid under it), in dp (header_side). */
+    int headerSide;
+    /** The focused tile's zoom in percent (focus_zoom); 0 keeps the built-in 110 (112 with advanced effects). */
+    int focusZoom;
+    /** "package=package" pairs: when the first app comes up, HomeKeyService opens the second (app_redirects). */
+    List<String> appRedirects = Collections.emptyList();
+    /** Launcher settings' Rows on screen: 3 or 4, or 0 to fill the screen; null means the theme decides. */
+    static final String VISIBLE_ROWS_KEY = "visible_rows";
+
+    /** A bundled Outfit weight by name, or 0 for an unknown name (the layout's own weight then stays). */
+    static int fontRes(String name) {
+        if (name == null) return 0;
+        switch (name) {
+            case "extralight": return R.font.outfit_extralight;
+            case "light": return R.font.outfit_light;
+            case "regular": return R.font.outfit_regular;
+            case "medium": return R.font.outfit_medium;
+            case "bold": return R.font.outfit_bold;
+            default: return 0;
+        }
+    }
     final String liveTvPackage;
     final String liveTvAction;
     final String liveTvInputId;
@@ -231,7 +279,7 @@ final class Config {
     final String glassStyle;
 
     static final String GLOW_RADIAL = "radial", GLOW_HORIZON = "horizon";
-    static final String GLASS_DEFAULT = "glass", GLASS_RIM = "rim", GLASS_HALO = "halo";
+    static final String GLASS_DEFAULT = "glass", GLASS_RIM = "rim", GLASS_HALO = "halo", GLASS_DOUBLE = "double";
     /** Show each rotating wallpaper's name from wallpapers/captions.txt (config.xml / theme wallpaper_captions). */
     final boolean wallpaperCaptions;
     /** Answer VIEW_INPUTS with the Inputs menu (handle_view_inputs); see InputsRequestActivity. */
@@ -389,6 +437,7 @@ final class Config {
         if (value == null) return GLASS_DEFAULT;
         String v = value.trim();
         if (GLASS_RIM.equalsIgnoreCase(v)) return GLASS_RIM;
+        if (GLASS_DOUBLE.equalsIgnoreCase(v)) return GLASS_DOUBLE;
         return GLASS_HALO.equalsIgnoreCase(v) ? GLASS_HALO : GLASS_DEFAULT;
     }
 
@@ -403,6 +452,22 @@ final class Config {
         boolean fillDock = res.getBoolean(R.bool.fill_dock);
         List<String> hidden = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.hidden_apps)));
         List<String> libraryApps = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.library_apps)));
+        List<String> gridOrder = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.grid_order)));
+        boolean heroEveryRow = res.getBoolean(R.bool.hero_every_row);
+        boolean heroUnderClock = res.getBoolean(R.bool.hero_under_clock);
+        int heroUnderClockRoom = res.getInteger(R.integer.hero_under_clock_room);
+        String heroFont = res.getString(R.string.hero_font);
+        boolean headerStacked = res.getBoolean(R.bool.header_stacked);
+        boolean heroInHeader = res.getBoolean(R.bool.hero_in_header);
+        String dreamClockFont = res.getString(R.string.dream_clock_font);
+        String dreamDateFont = res.getString(R.string.dream_date_font);
+        boolean dreamCentered = res.getBoolean(R.bool.dream_centered);
+        String clockFont = res.getString(R.string.clock_font);
+        int visibleRows = res.getInteger(R.integer.visible_rows);
+        int tileGap = res.getInteger(R.integer.tile_gap);
+        int headerSide = res.getInteger(R.integer.header_side);
+        int focusZoom = res.getInteger(R.integer.focus_zoom);
+        List<String> appRedirects = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.app_redirects)));
         String liveTv = res.getString(R.string.live_tv_package).trim();
         String liveTvAction = res.getString(R.string.live_tv_action).trim();
         String liveTvInputId = res.getString(R.string.live_tv_input_id).trim();
@@ -500,13 +565,30 @@ final class Config {
         File dir = dir(ctx);
         File file = dir != null ? new File(dir, FILE_NAME) : null;
         boolean mounted = Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState());
-        JSONObject json = readOverlay(ctx, file, mounted);
+        JSONObject json = withPreset(readOverlay(ctx, file, mounted),
+                readPreset(ctx, ctx.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE).getString(PRESET_KEY, "")));
         if (json != null) {
             applied = true;
             dock = stringList(json, "dock_apps", dock);
             fillDock = bool(json, "fill_dock", fillDock);
             hidden = stringList(json, "hidden_apps", hidden);
             libraryApps = stringList(json, "library_apps", libraryApps);
+            gridOrder = stringList(json, "grid_order", gridOrder);
+            heroEveryRow = bool(json, "hero_every_row", heroEveryRow);
+            heroUnderClock = bool(json, "hero_under_clock", heroUnderClock);
+            heroUnderClockRoom = json.optInt("hero_under_clock_room", heroUnderClockRoom);
+            heroFont = string(json, "hero_font", heroFont);
+            headerStacked = bool(json, "header_stacked", headerStacked);
+            heroInHeader = bool(json, "hero_in_header", heroInHeader);
+            dreamClockFont = string(json, "dream_clock_font", dreamClockFont);
+            dreamDateFont = string(json, "dream_date_font", dreamDateFont);
+            dreamCentered = bool(json, "dream_centered", dreamCentered);
+            clockFont = string(json, "clock_font", clockFont);
+            visibleRows = json.optInt("visible_rows", visibleRows);
+            tileGap = json.optInt("tile_gap", tileGap);
+            headerSide = json.optInt("header_side", headerSide);
+            focusZoom = json.optInt("focus_zoom", focusZoom);
+            appRedirects = stringList(json, "app_redirects", appRedirects);
             liveTv = string(json, "live_tv_package", liveTv);
             liveTvAction = string(json, "live_tv_action", liveTvAction);
             liveTvInputId = string(json, "live_tv_input_id", liveTvInputId);
@@ -647,7 +729,7 @@ final class Config {
         Festival festival = json == null ? Festival.NONE : Festival.parse(string(json, "festival", ""),
                 string(json, "festival_until", ""), string(json, "greeting", ""), string(json, "accent_color", ""));
 
-        return new Config(dock, fillDock, hidden, libraryApps, liveTv, liveTvAction, liveTvInputId, packageMap(launchActions), packageMap(appLabels),
+        Config cfg = new Config(dock, fillDock, hidden, libraryApps, liveTv, liveTvAction, liveTvInputId, packageMap(launchActions), packageMap(appLabels),
                 packageMap(appBanners), panelService, panelAction, panelExtra, coocaaSources, inputAction, inputSources, inputUriScheme, Math.max(1, columns),
                 Math.max(0, rowsBelow), animations, advancedEffects, shamsi, greetingName, moduleCards, reducedMotion, bootToLiveTv,
                 openOnStartChoice, dockTitle, dockRow, topMenu, launcherSettingsButton, reorderButton, showNetworkPill, showInputsPill,
@@ -661,6 +743,25 @@ final class Config {
                 consumeVolumeKeys, powerOnHome, homeLongPressHome, wifiStatusWarnings, topBarApps, showGreeting, headerWhite, clockWallpaper,
                 Math.max(0, Math.min(90, clockWallpaperDim)), clockGlow, glassStyle, singleRow && dockRow, dockBandAll, lunar, lunarOffset,
                 dateBelowClock, vpnPill, locale, powerOnHomeAlways);
+        cfg.gridOrder = Collections.unmodifiableList(gridOrder);
+        cfg.heroEveryRow = heroEveryRow;
+        cfg.heroUnderClock = heroUnderClock;
+        cfg.heroUnderClockRoom = Math.max(0, heroUnderClockRoom);
+        cfg.heroFont = heroFont;
+        cfg.headerStacked = headerStacked;
+        cfg.heroInHeader = heroInHeader;
+        cfg.dreamClockFont = dreamClockFont;
+        cfg.dreamDateFont = dreamDateFont;
+        cfg.dreamCentered = dreamCentered;
+        cfg.clockFont = clockFont;
+        cfg.visibleRows = Math.max(0, visibleRows);
+        cfg.tileGap = Math.max(0, tileGap);
+        cfg.headerSide = Math.max(0, headerSide);
+        cfg.focusZoom = focusZoom >= 100 && focusZoom <= 140 ? focusZoom : 0;
+        cfg.appRedirects = Collections.unmodifiableList(appRedirects);
+        int chosenVisible = ctx.getSharedPreferences(SETTINGS_NAME, Context.MODE_PRIVATE).getInt(VISIBLE_ROWS_KEY, -1);
+        if (chosenVisible == 0 || chosenVisible == 3 || chosenVisible == 4) cfg.visibleRows = chosenVisible;
+        return cfg;
     }
 
     /**
@@ -702,12 +803,12 @@ final class Config {
             // Existing preferences survive an app upgrade, unless the first launch follows an
             // explicit theme push or reset by the updated tools.
             SharedPreferences.Editor editor = choices.edit();
-            if (!"absent".equals(token)) editor.remove("columns").remove("animations")
+            if (!"absent".equals(token)) editor.remove(PRESET_KEY).remove(VISIBLE_ROWS_KEY).remove("columns").remove("animations")
                     .remove("advanced_effects").remove(ROWS_BELOW_DOCK_KEY).remove(WALLPAPER_CHOICE_KEY)
                     .remove(DOCK_OPACITY_KEY);
             editor.putString(THEME_SIGNATURE_KEY, signature).commit();
         } else if (!seen.equals(signature)) {
-            choices.edit().remove("columns").remove("animations").remove("advanced_effects")
+            choices.edit().remove(PRESET_KEY).remove(VISIBLE_ROWS_KEY).remove("columns").remove("animations").remove("advanced_effects")
                     .remove(ROWS_BELOW_DOCK_KEY).remove(WALLPAPER_CHOICE_KEY).remove(DOCK_OPACITY_KEY)
                     .putString(THEME_SIGNATURE_KEY, signature).commit();
         }
@@ -753,6 +854,57 @@ final class Config {
             }
         }
         return json;
+    }
+
+    /** A bundled layout preset by id, or null for none, an unknown id or a broken file. */
+    static JSONObject readPreset(Context ctx, String id) {
+        if (id == null || id.isEmpty()) return null;
+        try (InputStream in = ctx.getAssets().open(PRESETS_DIR + "/" + id + ".json")) {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            for (int r; (r = in.read(buf)) > 0; ) out.write(buf, 0, r);
+            return new JSONObject(out.toString("UTF-8"));
+        } catch (Exception e) {
+            Log.w(TAG, "ignoring preset " + id + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /** The bundled presets as {id, name}, in file name order. */
+    static List<String[]> presets(Context ctx) {
+        List<String[]> out = new ArrayList<>();
+        try {
+            String[] names = ctx.getAssets().list(PRESETS_DIR);
+            if (names == null) return out;
+            Arrays.sort(names);
+            for (String name : names) {
+                if (!name.endsWith(".json")) continue;
+                String id = name.substring(0, name.length() - 5);
+                JSONObject preset = readPreset(ctx, id);
+                if (preset != null) out.add(new String[] {id, preset.optString("name", id)});
+            }
+        } catch (IOException e) {
+            Log.w(TAG, "could not list presets: " + e.getMessage());
+        }
+        return out;
+    }
+
+    /**
+     * The theme with a preset's layout keys on top. The theme keeps everything the preset does not name (app order,
+     * remote buttons, the screensaver), so switching layouts on the TV never loses the box's own setup.
+     */
+    static JSONObject withPreset(JSONObject theme, JSONObject preset) {
+        if (preset == null) return theme;
+        try {
+            JSONObject merged = theme == null ? new JSONObject() : new JSONObject(theme.toString());
+            for (java.util.Iterator<String> keys = preset.keys(); keys.hasNext(); ) {
+                String key = keys.next();
+                if (!"name".equals(key)) merged.put(key, preset.get(key));
+            }
+            return merged;
+        } catch (Exception e) {
+            return theme;
+        }
     }
 
     private static JSONObject read(File file) {

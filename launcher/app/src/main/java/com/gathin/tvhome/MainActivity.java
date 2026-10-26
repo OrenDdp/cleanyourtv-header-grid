@@ -284,6 +284,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private View btnReorder;
     /** dock_apps as loaded (config.xml or a theme): a saved Order only applies while these are unchanged. */
     private List<String> dockApps;
+    /** hero_every_row: every focused row parks where the dock does, under the big name; the rows above fade out. */
+    private boolean heroEveryRow;
+    /** hero_under_clock: the big name sits centred under the clock, and the grid scrolls normally below it. */
+    private boolean heroUnderClock;
+    /** hero_in_header: the big name sits between the clock block and the buttons instead of under the clock. */
+    private boolean heroInHeader;
+    /** header_stacked: the top buttons are a column, so Up/Down walk them and Left/Right go nowhere. */
+    private boolean stackedPills;
+    /** hero_under_clock: the first whole row on screen. */
+    private int heroFirstRow;
+    private int heroRowStart;
+    private DockDecoration dockDecoration;
     /** fill_dock false: the dock can have empty slots, which reorder mode leaves out and restores afterwards. */
     private boolean fillDockLeavesSlots;
     /** Edit-dock mode (Settings menu): a reorder session that swaps one chosen app into one dock place. */
@@ -449,6 +461,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroMeta = findViewById(R.id.heroMeta);
         heroDots = findViewById(R.id.heroDots);
         heroArt = findViewById(R.id.heroArt);
+        int heroFontRes = Config.fontRes(cfg.heroFont);
+        if (heroFontRes != 0) heroName.setTypeface(getResources().getFont(heroFontRes));
+        if (cfg.heroUnderClock) {
+            // Full width and centred, and the grid moves down to leave the name a line of its own.
+            ViewGroup.MarginLayoutParams hlp = (ViewGroup.MarginLayoutParams) hero.getLayoutParams();
+            hlp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            hlp.setMarginStart(0);
+            hero.setLayoutParams(hlp);
+            ((LinearLayout) hero).setGravity(Gravity.CENTER_HORIZONTAL);
+            heroName.setGravity(Gravity.CENTER);
+            View gridWrap = (View) findViewById(R.id.grid).getParent();
+            ViewGroup.MarginLayoutParams glp = (ViewGroup.MarginLayoutParams) gridWrap.getLayoutParams();
+            glp.topMargin = (int) (cfg.heroUnderClockRoom * getResources().getDisplayMetrics().density);
+            gridWrap.setLayoutParams(glp);
+        }
         cinematic = cfg.cinematicHome;
         glowStyle = cfg.glowStyle;
         heroDotsShown = cfg.cinematicDots;
@@ -498,7 +525,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         lunarOffset = Lunar.offsetFor(cfg.lunarUtcOffset, Locale.getDefault());
         if (lunar) lunarDate.setVisibility(View.VISIBLE);
         greetingName = cfg.greetingName;
-        if (cfg.dateBelowClock) moveDateBelowClock();
+        if (cfg.dateBelowClock || cfg.headerStacked) moveDateBelowClock();
+        if (cfg.headerStacked) stackHeader(cfg.headerSide);
+        int clockFontRes = Config.fontRes(cfg.clockFont);
+        if (clockFontRes != 0) ((TextView) findViewById(R.id.clock)).setTypeface(getResources().getFont(clockFontRes));
+        if (cfg.heroInHeader) {
+            heroInHeader = true;
+            // One line between the clock block and the buttons: a fixed box, so long names shrink instead of wrapping.
+            ViewGroup.LayoutParams nlp = heroName.getLayoutParams();
+            nlp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            nlp.height = Math.round(64 * density);
+            heroName.setLayoutParams(nlp);
+            heroName.setMaxLines(1);
+            heroName.setGravity(Gravity.CENTER);
+            heroName.setAutoSizeTextTypeUniformWithConfiguration(24, 48, 2, TypedValue.COMPLEX_UNIT_SP);
+            ((LinearLayout) hero).setGravity(Gravity.CENTER_HORIZONTAL);
+            findViewById(R.id.topButtons).addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> positionHeroInHeader());
+        }
         if (shamsi) {
             shamsiDate.setVisibility(View.VISIBLE);
             TextView date = findViewById(R.id.date);
@@ -552,6 +595,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     return true;
                 }
                 if (dockRow && getPosition(child) < COLUMNS) return false;
+                // hero_under_clock scrolls whole rows itself (scrollToWholeRows); a second scroll from here pulled
+                // against it, past the last row and back.
+                if (heroUnderClock) return false;
                 int top = child.getTop() + rect.top;
                 int bottom = top + rect.height();
                 // A row already fully on screen stays put, even inside the bottom padding (the last row
@@ -585,7 +631,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             public void onChildViewDetachedFromWindow(@NonNull View v) {
             }
         });
-        if (dockRow) grid.addItemDecoration(new DockDecoration(COLUMNS, density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding, cfg.dockBand,
+        if (dockRow) grid.addItemDecoration(dockDecoration = new DockDecoration(COLUMNS, density, cinematic, cfg.alwaysShowNames, cfg.dockOpacity, cfg.dockGlass, cfg.dockEvenPadding, cfg.dockBand,
                 singleRow, cfg.dockBandAll));
         if (cfg.fadeRows) TopFade.attach(grid, 48 * density);
         // Reduced motion: the tiles are simply there, with no entrance (reloadApps skips it there too).
@@ -595,6 +641,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         adapter = new AppAdapter(this, this, COLUMNS, cfg);
         dockApps = cfg.dockApps;
+        heroEveryRow = cfg.heroEveryRow;
+        heroUnderClock = cfg.heroUnderClock;
         fillDockLeavesSlots = !cfg.fillDock;
         Order savedOrder = Order.load(Order.file(this));
         adapter.setSavedOrder(Order.ranks(savedOrder, dockApps), Order.docked(savedOrder, dockApps));
@@ -603,8 +651,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // tvOS layout: push the dock row towards the bottom of the screen, leaving room for
         // rows_below_dock grid rows under it; the rest of the grid stays below until you press Down.
         int rowsBelowDock = cfg.rowsBelowDock;
+        AppAdapter.fixedGapPx = cfg.headerStacked && cfg.tileGap > 0 ? Math.round(cfg.tileGap * density) : -1;
         grid.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             int h = b - t;
+            if (AppAdapter.fixedGapPx >= 0 && fitGridToHeader()) return;
             // Item height follows the tile size, which follows the columns and the rows that must fit (AppAdapter.tileWidthPx).
             int inner = (r - l) - grid.getPaddingLeft() - grid.getPaddingRight();
             int tileW = AppAdapter.tileWidthPx(inner, h, COLUMNS, rowsBelowDock, cfg.dockTitle, cfg.dockRow, density);
@@ -620,6 +670,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (MainActivity.this.dockRow && cfg.dockTitle && rowsBelowDock > 0) want = Math.max(want, (int) (AppAdapter.TITLE_ROOM_DP * density));
             // No dock to push down: the grid starts at the top, with room for the first row's zoom and glass.
             if (!MainActivity.this.dockRow) want = (int) (AppAdapter.TOP_ROOM_DP * density);
+            if (!MainActivity.this.dockRow && cfg.visibleRows > 0) fitVisibleRows(want, AppAdapter.tileHeightPx(tileW), cfg.visibleRows);
             // A single row never shows the names under its tiles (the title above the row names the app), so the
             // 7dp gap and 22dp label item_app.xml keeps for them would only lift the row: sit it that much lower.
             if (singleRow && !cfg.alwaysShowNames) want += (int) (29 * density);
@@ -777,6 +828,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         boolean rtlMenuBar = getResources().getBoolean(R.bool.rtl_menu_bar);
         View.OnKeyListener pillKeys = (v, keyCode, event) -> {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+            if (stackedPills) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    View next = neighbourPill(v, keyCode == KeyEvent.KEYCODE_DPAD_DOWN ? 1 : -1);
+                    if (next != null) next.requestFocus();
+                    else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) focusTile(lastFocused % COLUMNS);
+                    return true;
+                }
+                return keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
+            }
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
@@ -1472,6 +1532,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return pos != RecyclerView.NO_POSITION && movingKey.equals(adapter.keyAt(pos)) ? 1f : 0.45f;
         }
         if (dockEditSlot >= 0 && pos >= 0 && pos < COLUMNS && pos != dockEditSlot) return 0.45f;
+        if (heroEveryRow && pos >= 0 && pos < heroRowStart) return 0f;
         return 1f;
     }
 
@@ -1676,7 +1737,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             springY.animateToFinalPosition(y - glassScrollShift);
         }
         View item = (View) card.getParent();
-        if (dockRow && (singleRow || position < COLUMNS)) {
+        if (heroUnderClock && !singleRow) {
+            showHero(position, 0f);
+            scrollToWholeRows(position, item, card);
+        } else if (dockRow && (singleRow || position < COLUMNS || heroEveryRow)) {
+            if (heroEveryRow) fadeRowsAbove(position - position % COLUMNS);
             // Dock: park it at the bottom of the screen and show the top shelf for this app. In a single row
             // every tile is in the dock's row, which never scrolls vertically.
             int decoratedTop = item.getTop() - (int) (6 * density);
@@ -1717,10 +1782,197 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     // ---- top shelf -------------------------------------------------------------------------------
 
+    /** hero_every_row: hide the rows above the parked one (and the dock band with them) so the big name has room. */
+    private void fadeRowsAbove(int rowStart) {
+        heroRowStart = rowStart;
+        if (dockDecoration != null && dockDecoration.hidden != rowStart > 0) {
+            dockDecoration.hidden = rowStart > 0;
+            grid.invalidateItemDecorations();
+        }
+        for (int i = 0; i < grid.getChildCount(); i++) {
+            View child = grid.getChildAt(i);
+            int pos = grid.getChildAdapterPosition(child);
+            float alpha = tileAlpha(pos);
+            if (child.getAlpha() == alpha) continue;
+            if (animations && !reducedMotion) child.animate().alpha(alpha).setDuration(150).start();
+            else child.setAlpha(alpha);
+        }
+    }
+
+    /**
+     * hero_under_clock: scroll a whole row at a time, so the grid always shows complete rows under the name
+     * instead of stopping mid-row. The window only moves when focus leaves it.
+     */
+    private void scrollToWholeRows(int position, View item, View card) {
+        int rowH = grid.getLayoutManager().getDecoratedMeasuredHeight(item);
+        if (rowH <= 0) return;
+        int room = grid.getHeight() - grid.getPaddingTop();
+        int cardBottom = card.getBottom() + (int) (8 * density);
+        int visible = Math.max(1, 1 + (room - cardBottom) / rowH);
+        int row = position / COLUMNS;
+        if (row < heroFirstRow) heroFirstRow = row;
+        else if (row > heroFirstRow + visible - 1) heroFirstRow = row - visible + 1;
+        // From where the focused row really is, not computeVerticalScrollOffset(): that is RecyclerView's estimate,
+        // about 15px off in this grid, and correcting it on every move jumped the rows up and down even on Left/Right.
+        int dy = item.getTop() - (grid.getPaddingTop() + (row - heroFirstRow) * rowH);
+        if (dy == 0) return;
+        if (!animations || reducedMotion) grid.scrollBy(0, dy);
+        else grid.smoothScrollBy(0, dy);
+    }
+
+    /** hero_under_clock: the name's top, just under the clock block, in the hero's parent's coordinates. */
+    private float heroUnderClockY() {
+        View block = findViewById(R.id.leftBlock);
+        int[] b = new int[2];
+        int[] p = new int[2];
+        block.getLocationInWindow(b);
+        ((View) hero.getParent()).getLocationInWindow(p);
+        // hero_in_header: level with the middle of the clock block.
+        if (heroInHeader) return b[1] - p[1] + (block.getHeight() - hero.getHeight()) / 2f;
+        return b[1] - p[1] + block.getHeight() + 6 * density;
+    }
+
+    /**
+     * visible_rows: the grid's frame holds exactly that many rows (the frame clips), so the next row never peeks in
+     * and the space under the last one stays clear. Set on the next frame: this runs inside a layout pass.
+     */
+    private void fitVisibleRows(int paddingTop, int tileH, int rows) {
+        int pitch = AppAdapter.fixedGapPx >= 0 ? tileH + Math.max(AppAdapter.fixedGapPx, Math.round(4 * density))
+                : tileH + Math.round((heroEveryRow ? 26 : AppAdapter.COMPACT_ITEM_EXTRA_DP) * density);
+        int height = paddingTop + rows * pitch;
+        View frame = (View) grid.getParent();
+        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) frame.getLayoutParams();
+        if (lp.height == height && lp.weight == 0f) return;
+        grid.post(() -> {
+            lp.height = height;
+            lp.weight = 0f;
+            frame.setLayoutParams(lp);
+        });
+    }
+
+    /**
+     * tile_gap: pad the grid so its outer tiles line up with the date's first letter on the left and the buttons'
+     * right edge on the right (each cell is a tile plus a gap, half a gap at each end). True when the padding changed:
+     * the tiles are then made again at the new size on the next frame.
+     */
+    private boolean fitGridToHeader() {
+        View date = (View) findViewById(R.id.date).getParent();
+        View bar = findViewById(R.id.topButtons);
+        int[] g = new int[2];
+        int[] d = new int[2];
+        int[] t = new int[2];
+        grid.getLocationInWindow(g);
+        date.getLocationInWindow(d);
+        bar.getLocationInWindow(t);
+        int half = AppAdapter.fixedGapPx / 2;
+        int left = d[0] - g[0] - half;
+        int right = g[0] + grid.getWidth() - (t[0] + bar.getWidth()) - half;
+        if (date.getWidth() == 0 || bar.getWidth() == 0) return false;
+        if (left < 0 || right < 0) {
+            // The outer half gaps fall outside the header's edges: widen the grid's frame past them (it only clips
+            // at its own bounds), and fit again on the next layout.
+            View frame = (View) grid.getParent();
+            ViewGroup.MarginLayoutParams flp = (ViewGroup.MarginLayoutParams) frame.getLayoutParams();
+            int ml = flp.leftMargin + Math.min(0, left);
+            int mr = flp.rightMargin + Math.min(0, right);
+            grid.post(() -> {
+                flp.leftMargin = ml;
+                flp.rightMargin = mr;
+                frame.setLayoutParams(flp);
+            });
+            return true;
+        }
+        if (grid.getPaddingLeft() == left && grid.getPaddingRight() == right) return false;
+        grid.post(() -> {
+            grid.setPadding(left, grid.getPaddingTop(), right, grid.getPaddingBottom());
+            grid.setAdapter(adapter);   // ViewHolders keep the size they were made at
+            // Making them again drops focus, which then lands on the top bar: put it back on the tile it was on.
+            grid.post(() -> focusTile(lastFocused));
+        });
+        return true;
+    }
+
+    /** hero_in_header: the name's box spans the gap between the clock block and the buttons, with a margin each side. */
+    private void positionHeroInHeader() {
+        View block = findViewById(R.id.leftBlock);
+        View bar = findViewById(R.id.topButtons);
+        int[] p = new int[2];
+        int[] b = new int[2];
+        int[] t = new int[2];
+        ((View) hero.getParent()).getLocationInWindow(p);
+        block.getLocationInWindow(b);
+        bar.getLocationInWindow(t);
+        int gap = Math.round(24 * density);
+        // Centred on the screen, as wide as the narrower side of the gap allows on both sides.
+        int centre = ((View) hero.getParent()).getWidth() / 2;
+        int half = Math.max(0, Math.min(centre - (b[0] - p[0] + block.getWidth() + gap), t[0] - p[0] - gap - centre));
+        int left = centre - half;
+        int width = 2 * half;
+        ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) hero.getLayoutParams();
+        if (lp.width == width && lp.getMarginStart() == left) return;
+        lp.width = width;
+        lp.setMarginStart(left);
+        hero.setLayoutParams(lp);
+    }
+
+    /**
+     * header_stacked: the clock centred over the date, 36dp side margins (the grid below widens with them), and the
+     * top buttons stacked as narrow pills of one width, level with the top of the clock block.
+     */
+    private void stackHeader(int sideDp) {
+        LinearLayout block = findViewById(R.id.leftBlock);
+        RelativeLayout.LayoutParams blp = (RelativeLayout.LayoutParams) block.getLayoutParams();
+        blp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        // Anchored to the buttons as well, RelativeLayout stretched the block across to them and the centred clock
+        // landed mid-screen; only its start edge is kept.
+        blp.removeRule(RelativeLayout.START_OF);
+        blp.removeRule(RelativeLayout.LEFT_OF);
+        block.setLayoutParams(blp);
+        block.setGravity(Gravity.CENTER_HORIZONTAL);
+        ((TextView) findViewById(R.id.greeting)).setGravity(Gravity.CENTER);
+        View clockRow = (View) findViewById(R.id.clock).getParent();
+        LinearLayout.LayoutParams clp = (LinearLayout.LayoutParams) clockRow.getLayoutParams();
+        clp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        clp.gravity = Gravity.CENTER_HORIZONTAL;
+        clockRow.setLayoutParams(clp);
+        TextView date = findViewById(R.id.date);
+        date.setGravity(Gravity.CENTER);
+        View dateColumn = (View) date.getParent();
+        LinearLayout.LayoutParams dlp = (LinearLayout.LayoutParams) dateColumn.getLayoutParams();
+        dlp.gravity = Gravity.CENTER_HORIZONTAL;
+        dlp.topMargin = Math.round(2 * density);
+        dateColumn.setLayoutParams(dlp);
+        View content = (View) block.getParent().getParent();
+        int side = Math.round(sideDp * density);
+        content.setPaddingRelative(side, content.getPaddingTop(), side, content.getPaddingBottom());
+        LinearLayout bar = findViewById(R.id.topButtons);
+        bar.setOrientation(LinearLayout.VERTICAL);
+        stackedPills = true;
+        RelativeLayout.LayoutParams tlp = (RelativeLayout.LayoutParams) bar.getLayoutParams();
+        tlp.removeRule(RelativeLayout.ALIGN_BOTTOM);
+        tlp.addRule(RelativeLayout.ALIGN_TOP, R.id.leftBlock);
+        bar.setLayoutParams(tlp);
+        for (int i = 0; i < bar.getChildCount(); i++) {
+            View button = bar.getChildAt(i);
+            LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) button.getLayoutParams();
+            lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            lp.setMarginStart(0);
+            lp.topMargin = Math.round(5 * density);
+            lp.bottomMargin = Math.round(5 * density);
+            button.setLayoutParams(lp);
+            // Narrower pills: less padding at the sides only; the height and the text size stay.
+            // Narrow, shorter pills: less padding at the sides, 34dp instead of 42dp tall; icon and text size stay.
+            lp.height = Math.round(34 * density);
+            button.setLayoutParams(lp);
+            button.setPaddingRelative(Math.round(8 * density), button.getPaddingTop(), Math.round(10 * density), button.getPaddingBottom());
+            if (button instanceof TextView) ((TextView) button).setCompoundDrawablePadding(Math.round(5 * density));
+        }
+    }
+
     private void showHero(int position, float dockTopInRoot) {
         String label = adapter.labelAt(position);
         int color = adapter.ambientColorAt(position);
-        float y = dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
+        float y = heroUnderClock ? heroUnderClockY() : dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
         boolean changed = !label.contentEquals(heroName.getText());
         if (cinematic && heroArtAlpha > 0f) showHeroArt(position);
 
@@ -2306,6 +2558,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         clockColumn.addView(column, clockColumn.indexOfChild(clockRow) + 1, lp);
     }
 
+    /** header_stacked: the shown top button {@code step} places from {@code from} in the column, or null past either end. */
+    private View neighbourPill(View from, int step) {
+        ViewGroup bar = findViewById(R.id.topButtons);
+        List<View> shown = new ArrayList<>();
+        for (int i = 0; i < bar.getChildCount(); i++) {
+            View button = bar.getChildAt(i);
+            if (button.getVisibility() == View.VISIBLE) shown.add(button);
+        }
+        int at = shown.indexOf(from) + step;
+        return at >= 0 && at < shown.size() && shown.contains(from) ? shown.get(at) : null;
+    }
+
     /** The first top-bar button after Inputs that is shown, in bar order (top_bar_apps, the network pill, ...); Settings is always there. */
     private View firstTopButton() {
         ViewGroup bar = findViewById(R.id.topButtons);
@@ -2673,6 +2937,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             btnWifi.setContentDescription(btnWifi.getText());
             btnWifi.setText(null);
         }
+        // header_stacked: the pills are match_parent in a column as wide as its widest pill, and a TextView that is
+        // not wrap_content never asks for a new layout when its text grows. A network name that arrived after "Wi-Fi"
+        // was cut to the old width; measure the column again.
+        if (stackedPills) btnWifi.getParent().requestLayout();
         if (festive && diya != null) {
             if (online && flame == 0) flame = 3;   // online some other way (cellular, USB tethering)
             diya.setSteady(steady);

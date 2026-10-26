@@ -378,6 +378,53 @@
          nearly empty. Empty (off) by default, so existing setups change nothing. -->
     <string-array name="library_apps" translatable="false">
     </string-array>
+    <!-- Grid apps that lead the grid in this order, right after the dock; the rest follow alphabetically. An order
+         set on the TV with Reorder apps still wins. A theme can set "grid_order". Empty by default. -->
+    <string-array name="grid_order" translatable="false">
+    </string-array>
+    <!-- The big name above the focused app on every row, not only the dock: the focused row parks where the dock
+         sits, the rows above fade out, and no tile gets a small name. A theme can set "hero_every_row". Off by default. -->
+    <bool name="hero_every_row">false</bool>
+    <!-- The big name centred under the clock instead of above the dock; the grid moves down to make room and
+         scrolls normally. Pairs with dock_row false and hero_every_row for one plain grid named from the top.
+         A theme can set "hero_under_clock". Off by default. -->
+    <bool name="hero_under_clock">false</bool>
+    <!-- With hero_under_clock: the room above the grid for the name, in dp. The rows are cut at this line, so a smaller
+         number raises the cut towards the name. A theme can set "hero_under_clock_room". -->
+    <integer name="hero_under_clock_room">96</integer>
+    <!-- The big name's weight: light (default), regular, medium or bold. A theme can set "hero_font". -->
+    <string name="hero_font" translatable="false">light</string>
+    <!-- Header: the clock centred over the date, side margins 36dp instead of 56dp (the grid widens with them), and
+         Wi-Fi above Settings as two narrow pills. A theme can set "header_stacked". Off by default. -->
+    <bool name="header_stacked">false</bool>
+    <!-- The big name in the header, centred between the clock block and the buttons; long names shrink to fit.
+         Use with hero_under_clock for the whole-row scrolling. A theme can set "hero_in_header". Off by default. -->
+    <bool name="hero_in_header">false</bool>
+    <!-- Screensaver: the clock's and the date's weights (extralight, light, regular, medium, bold; empty keeps the
+         layout's extralight clock and regular date), and the clock centred over the date. Themes: "dream_clock_font",
+         "dream_date_font", "dream_centered". -->
+    <string name="dream_clock_font" translatable="false"></string>
+    <string name="dream_date_font" translatable="false"></string>
+    <bool name="dream_centered">false</bool>
+    <!-- The home clock's weight (extralight, light, regular, medium, bold); empty keeps light. Theme: "clock_font". -->
+    <string name="clock_font" translatable="false"></string>
+    <!-- Plain grid (dock_row false): exactly this many rows on screen, cut below the last; the rest scroll into view
+         a row at a time with hero_under_clock. 0 fills the screen. Theme: "visible_rows". -->
+    <integer name="visible_rows">0</integer>
+    <!-- With header_stacked: the gap between tiles, across and down, in dp. The grid then runs from the date's first
+         letter to the buttons' right edge and the tiles grow to fill it. 0 keeps the usual sizing. Theme: "tile_gap". -->
+    <integer name="tile_gap">0</integer>
+    <!-- header_stacked: the header's side margin in dp (the grid follows it with tile_gap). Theme: "header_side". -->
+    <integer name="header_side">36</integer>
+    <!-- The focused tile's zoom in percent, 100-140; 0 keeps the built-in 110. Bigger needs room: tile_gap. Theme:
+         "focus_zoom". -->
+    <integer name="focus_zoom">0</integer>
+    <!-- "package=package": whenever the first app comes up, HomeKeyService (HOME_KEY_SERVICE=1) opens the second one
+         instead. For remote buttons the firmware routes before any key helper sees them: on Android 9 Mi Box S the
+         LIVE button starts Live Channels (com.google.android.tv) from the system, so
+         com.google.android.tv=org.xbmc.povi turns it into a Kodi button. Theme: "app_redirects". Empty by default. -->
+    <string-array name="app_redirects" translatable="false">
+    </string-array>
 
     <!-- Module cards: an app that declares a card (docs/specs/card.md) can stand in for its tile with its own
          label, caption and glow colour, once you answer Show on the prompt. false: never look for cards or ask. -->

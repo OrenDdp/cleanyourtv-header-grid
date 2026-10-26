@@ -19,6 +19,7 @@ pushes it with `theme.sh`.
 | Theme | What it does | Screenshot |
 |---|---|---|
 | `default/` | The built-in look written out as JSON, as a starting point for your own | <img src="default/screenshot.jpg" width="320" alt="default theme"> |
+| `header-grid/` | Apple TV style without a dock: a bold clock over the date and the focused app's name in the header, Wi-Fi above Settings, five apps per row edge to edge with an even gap, a black-and-white double focus frame and a bold screensaver clock | <img src="header-grid/screenshot.jpg" width="320" alt="header-grid theme"> |
 | `aurora/` | A dark aurora wallpaper (teal and violet on navy, darker at the bottom) with a matching background colour | <img src="aurora/screenshot.jpg" width="320" alt="aurora theme"> |
 | `dussehra/` | Festive skin for Dussehra (ends 21 Oct 2026): a marigold toran, a faint gold rangoli, a diya for Wi-Fi, a bell for Inputs, a marigold for Settings and a petal shower | <img src="dussehra/screenshot.jpg" width="320" alt="dussehra theme"> |
 | `glass/` | Dark navy wallpaper with soft teal and violet light, the cinematic top shelf, a frosted-glass dock, icon-only buttons and the focus glow in the app's colour, gliding without overshoot | <img src="glass/screenshot.jpg" width="320" alt="glass theme"> |
@@ -133,7 +134,7 @@ A new key needs one there in the same pull request.
 | `clock_wallpaper_dim` | 0 to 90 | How dark that wallpaper is behind the clock, in percent (50 by default) |
 | `clock_glow` | bool | The clock screensaver's coloured glow (`true` by default); `false` leaves the moving clock on plain black, e.g. for an OLED |
 | `glow_style` | string | Shape of the glow behind the focused app, in its colour: `radial` (default) or `horizon`, the colour washing down from the top edge to black; the cinematic shelf keeps its own |
-| `glass_style` | string | Look of the focus highlight: `glass` (default: a translucent slab with a bright top sheen, a crisp rim and a faint outer glow), `rim` (the crisp rim alone, no sheen, fill or glow, for a quiet focus over a wallpaper) or `halo` (the rim with a lighter outer glow) |
+| `glass_style` | string | Look of the focus highlight: `glass` (default: a translucent slab with a bright top sheen, a crisp rim and a faint outer glow), `rim` (the crisp rim alone, no sheen, fill or glow, for a quiet focus over a wallpaper), `halo` (the rim with a lighter outer glow) or `double` (a black ring on the tile's own edge and a white ring around it over a white glow, so the focus reads on white and dark banners alike) |
 | `cinematic_home` | bool | Cinematic top shelf: the focused dock app's artwork, softened, fills the top of the screen in its colour, with a larger name, "Last opened" (apps opened from Home), dock position dots, a focus glow in the app's colour and a translucent dock band; off by default |
 | `cinematic_dots` | bool | With `cinematic_home`, the dock position dots under the app's name (`true` by default); `false` leaves them out |
 | `cinematic_white_focus` | bool | With `cinematic_home`, the focus highlight stays white on the dock instead of taking the focused app's colour (`false` by default); `app_glow` still colours every tile |
@@ -147,6 +148,20 @@ A new key needs one there in the same pull request.
 | `ambient_glow` | bool | The glow behind the dock in the focused app's colour (`true` by default); `false` keeps only `background_color` or the wallpaper, e.g. for a calm photo background |
 | `app_glow` | bool | The focus highlight glows in the focused app's colour on every tile, as `cinematic_home` does for the dock (`false` by default) |
 | `fade_rows` | bool | The rows fade out as they scroll up under the clock instead of being cut off at a hard line; the wallpaper or sky shows through. The grid then draws into a hardware layer (about 6 MB of graphics memory at 1080p) (`false` by default) |
+| `grid_order` | list of package names | Apps that lead the grid in this order, right after the dock apps; the rest follow alphabetically. An order set on the TV with Reorder apps still wins (empty by default) |
+| `hero_every_row` | bool | The big name above the focused app on every row, not only the dock; no small names under any tile (`false` by default) |
+| `hero_under_clock` | bool | The big name centred under the clock and the grid scrolls a whole row at a time under it; with `dock_row: false` one plain grid named from the top (`false` by default) |
+| `hero_under_clock_room` | number | With `hero_under_clock`: the room above the grid in dp, where the rows are cut (96 by default) |
+| `hero_in_header` | bool | The big name in the header instead, centred on the screen between the clock block and the buttons; long names shrink to fit. Use with `hero_under_clock` (`false` by default) |
+| `header_stacked` | bool | The clock centred over the date on the left and Wi-Fi above Settings as short pills on the right (`false` by default) |
+| `header_side` | number | With `header_stacked`: the header's side margin in dp (36 by default) |
+| `tile_gap` | number | With `header_stacked`: the gap between tiles in dp, across and down; the grid then runs exactly from the date's first letter to the buttons' right edge (0, off, by default) |
+| `visible_rows` | number | Plain grid: exactly this many rows on screen, cut below the last; 0 fills the screen. Also on the TV: Launcher settings > Rows on screen (0 by default) |
+| `focus_zoom` | number | The focused tile's zoom in percent, 100-140; bigger needs room from `tile_gap` (0 keeps the built-in 110) |
+| `hero_font`, `clock_font` | `light`, `regular`, `medium` or `bold` | The big name's and the home clock's weight (`light` by default) |
+| `dream_clock_font`, `dream_date_font` | `extralight`, `light`, `regular`, `medium` or `bold` | The screensaver clock's and date's weights (empty keeps the built-in thin clock) |
+| `dream_centered` | bool | The screensaver clock centred over its date (`false` by default) |
+| `app_redirects` | list of `package=package` | Whenever the first app comes up, the Home helper (`HOME_KEY_SERVICE=1`) opens the second. For buttons the firmware routes before any key helper sees them: on Android 9 Mi Box S, LIVE starts Live Channels, so `com.google.android.tv=org.xbmc.povi` makes it a Kodi button (empty by default) |
 
 ## Wallpapers
 

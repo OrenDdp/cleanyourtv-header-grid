@@ -1,0 +1,21 @@
+{
+  "columns": 5,
+  "hero_every_row": true,
+  "dock_row": false,
+  "hero_under_clock": true,
+  "hero_font": "bold",
+  "hero_under_clock_room": 0,
+  "header_stacked": true,
+  "hero_in_header": true,
+  "rows_below_dock": 0,
+  "dream_clock_font": "bold",
+  "dream_date_font": "medium",
+  "dream_centered": true,
+  "show_greeting": false,
+  "visible_rows": 0,
+  "clock_font": "bold",
+  "tile_gap": 18,
+  "header_side": 24,
+  "focus_zoom": 113,
+  "glass_style": "double"
+}

@@ -70,6 +70,8 @@ public class HomeKeyService extends AccessibilityService {
     private final Set<String> stockHome = new HashSet<>();
     /** stock_home_redirect, the stock launcher's package. */
     private String stockHomePackage = "";
+    /** app_redirects: app that came up -> app to open instead. */
+    private final java.util.Map<String, String> redirects = new java.util.HashMap<>();
     /** power_on_home: the Live TV package to send back to Home, empty when off; armed until this uptime or a key. */
     private String powerOnLiveTv = "";
     private long powerOnUntil;
@@ -198,6 +200,12 @@ public class HomeKeyService extends AccessibilityService {
                 stockHome.add(ri.activityInfo.name);
             }
         }
+        redirects.clear();
+        for (String pair : config.appRedirects) {
+            int eq = pair.indexOf('=');
+            String from = eq > 0 ? pair.substring(0, eq).trim() : "", to = eq > 0 ? pair.substring(eq + 1).trim() : "";
+            if (!from.isEmpty() && !to.isEmpty() && !from.equals(to)) redirects.put(from, to);
+        }
         // power_on_home, off by default. Not with boot_to_live_tv, or with Live TV picked as the Open on start app:
         // those open Live TV on purpose at boot.
         String openOnStart = config.openOnStartChoice
@@ -214,7 +222,7 @@ public class HomeKeyService extends AccessibilityService {
         }
         // home_key_service.xml subscribes to no events, so the redirects ask for window changes only when one is on.
         AccessibilityServiceInfo info = getServiceInfo();
-        if (info != null && (!stockHome.isEmpty() || !powerOnLiveTv.isEmpty())) {
+        if (info != null && (!stockHome.isEmpty() || !powerOnLiveTv.isEmpty() || !redirects.isEmpty())) {
             info.eventTypes |= AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED;
             setServiceInfo(info);
         }
@@ -289,6 +297,13 @@ public class HomeKeyService extends AccessibilityService {
         // power_on_home: the firmware opened Live TV by itself at power-on, before anyone pressed a key.
         if (powerOnRedirect(powerOnLiveTv, event.getPackageName(), SystemClock.elapsedRealtime(), powerOnUntil)) {
             openHome();
+            return;
+        }
+        // app_redirects: an app the firmware opened by itself (a remote button it routes first) hands over at once.
+        CharSequence pkg = event.getPackageName();
+        String to = pkg == null ? null : redirects.get(pkg.toString());
+        if (to != null) {
+            RemoteKeys.launch(this, to);
             return;
         }
         // stock_home_redirect: the firmware turned the stock launcher back on and its home screen came up.
