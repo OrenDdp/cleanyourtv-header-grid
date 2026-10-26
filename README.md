@@ -1,3 +1,22 @@
+# Header Grid: an Apple TV style home without a dock
+
+A fork of [cleanyourtv](https://github.com/Gathin23/cleanyourtv) by [OrenDdp](https://github.com/OrenDdp), designed
+and used every day on four Xiaomi Mi Box S (two on Android TV 12, two on Android TV 9). What changed and how to use
+it: **[FORK.md](FORK.md)**. Push the look to your TV with `TV_HOST=<tv ip> tools/theme.sh themes/header-grid`.
+
+<img src="docs/header-grid/home.jpg" width="900" alt="Header Grid home screen on a Mi Box S">
+
+| | |
+|---|---|
+| <img src="docs/header-grid/focus-netflix.jpg" width="440" alt="Double focus frame on a white tile"><br>A black-and-white double focus frame reads on white tiles... | <img src="docs/header-grid/focus-disney.jpg" width="440" alt="Double focus frame on a dark tile"><br>...and on dark ones; the app's name sits in the header |
+| <img src="docs/switches/dream_fonts.jpg" width="440" alt="Bold clock screensaver"><br>A bold, centred clock screensaver | <img src="docs/switches/app_redirects.jpg" width="440" alt="Kodi opened from the LIVE button"><br>The LIVE button opens Kodi, even on Android 9 (`app_redirects`) |
+| <img src="docs/header-grid/theme-picker.jpg" width="440" alt="Theme picker in Launcher settings"><br>Switch layouts on the TV: Launcher settings > Theme | <img src="docs/header-grid/launcher-settings.jpg" width="440" alt="Rows on screen in Launcher settings"><br>Rows on screen: 3, 4 or Fill |
+
+Everything new is a launcher switch that is off by default, so without the theme the launcher is upstream's.
+The original cleanyourtv README follows.
+
+---
+
 <p align="center">
   <a href="https://cleanyour.tv"><img src="https://raw.githubusercontent.com/Gathin23/cleanyourtv/main/docs/banner.png" alt="CleanYourTV. Your TV, minus the ads. Strip the bloatware from any Android TV or Google TV over Wi-Fi and replace the ad-filled home screen with a clean launcher that looks like an Apple TV. No root, no cable, nothing uninstalled, and a one-line restore." width="800"></a>
 </p>
