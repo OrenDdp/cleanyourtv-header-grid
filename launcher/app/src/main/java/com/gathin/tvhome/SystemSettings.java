@@ -15,13 +15,19 @@ final class SystemSettings {
 
     static Intent intent(Context context, String action) {
         PackageManager pm = context.getPackageManager();
-        Intent standard = new Intent(action);
+        Intent standard = freshTask(new Intent(action));
         ResolveInfo resolved = pm.resolveActivity(standard, PackageManager.MATCH_DEFAULT_ONLY);
         // Fire OS resolves the standard actions to a CTS compliance stub that opens nothing;
         // treat it as missing so the vendor fallback runs.
         if (resolved != null && !resolved.activityInfo.name.contains("CTSDummy")) return standard;
         Intent vendor = vendorIntent(context);
-        return vendor != null ? vendor : standard;
+        return vendor != null ? freshTask(vendor) : standard;
+    }
+
+    /** Starts Settings from its first page: without CLEAR_TASK, App info pages opened earlier stay stacked
+     *  in the Settings task, and the Settings pill only brings that task back with the last one on top. */
+    static Intent freshTask(Intent i) {
+        return i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
     }
 
     /** The first vendor settings entry from settings_fallback_components that is installed, or null
@@ -46,7 +52,7 @@ final class SystemSettings {
 
     /** The TV's App info page for pkg, or null where the firmware has none (CVTE's settings app, #1202). */
     static Intent appInfo(Context context, String pkg) {
-        Intent info = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + pkg));
+        Intent info = freshTask(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + pkg)));
         return context.getPackageManager().resolveActivity(info, PackageManager.MATCH_DEFAULT_ONLY) != null ? info : null;
     }
 }
